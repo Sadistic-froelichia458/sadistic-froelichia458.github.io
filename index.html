@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✍️ 완전 자립형 AI 숫자 판독기</title>
-    <!-- TensorFlow.js 기본 라이브러리만 로드 -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <title>🔊 고품질 웹 TTS 엔진</title>
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -23,154 +21,112 @@
             border-radius: 16px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.3);
             text-align: center;
-            width: 300px;
+            width: 350px;
         }
         h2 { color: #00d2ff; margin-top: 0; }
-        #canvas {
-            border: 4px solid #00d2ff;
-            border-radius: 12px;
-            background-color: black;
-            cursor: crosshair;
-            touch-action: none;
-        }
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        button {
-            flex: 1;
+        textarea {
+            width: calc(100% - 24px);
+            height: 100px;
             padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #00d2ff;
+            background-color: #111;
+            color: white;
+            font-size: 16px;
+            resize: none;
+            margin-bottom: 15px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+            text-align: left;
+            font-size: 14px;
+        }
+        label { display: inline-block; width: 60px; color: #aaa; }
+        input[type="range"] { width: 230px; vertical-align: middle; }
+        
+        button {
+            width: 100%;
+            padding: 14px;
             font-size: 16px;
             font-weight: bold;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: 0.2s;
+            background-color: #2ed573;
             color: white;
+            transition: 0.2s;
         }
-        .btn-clear { background-color: #ff4757; }
-        .btn-predict { background-color: #2ed573; }
         button:hover { opacity: 0.9; transform: scale(0.98); }
-        #result {
-            margin-top: 25px;
-            font-size: 26px;
-            font-weight: bold;
-            color: #fbc531;
-            min-height: 40px;
-        }
-        .status { color: #2ed573; font-size: 14px; margin-bottom: 15px; font-weight: bold; }
+        .status { color: #ffa502; font-size: 13px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>✍️ 숫자 판독기 (AI)</h2>
-    <div id="status" class="status">🤖 AI 판독 엔진 가동 완료</div>
+    <h2>🔊 웹 고품질 TTS</h2>
+    <textarea id="text-input">안녕하세요. 아두이노 오토 도어 브이투 시스템이 정상적으로 가동되었습니다.</textarea>
     
-    <!-- MNIST 규격에 맞춘 검은색 캔버스 (280x280) -->
-    <canvas id="canvas" width="280" height="280"></canvas>
-    
-    <div class="btn-group">
-        <button class="btn-clear" onclick="clearCanvas()">지우기</button>
-        <button class="btn-predict" onclick="predictDigit()">판독하기</button>
+    <!-- 속도 및 피치 조절바 -->
+    <div class="control-group">
+        <label>속도(Speed)</label>
+        <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
     </div>
-    
-    <div id="result">숫자를 그려보세요</div>
+    <div class="control-group">
+        <label>음높이(Pitch)</label>
+        <input type="range" id="pitch" min="0.5" max="2" value="1.1" step="0.1"> <!-- 1.1로 주면 약간 더 산뜻한 목소리가 납니다 -->
+    </div>
+
+    <button onclick="speakText()">🎙️ 목소리 출력하기</button>
+    <div id="status" class="status">브라우저 내장 고품질 음성 엔진 대기 중</div>
 </div>
 
 <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    let isDrawing = false;
-    let model;
+    let voices = [];
 
-    // 1. 외부 서버 안 거치고 웹 브라우저 자체에서 MNIST용 CNN 신경망 구조 즉석 빌드
-    function buildModel() {
-        model = tf.sequential();
-        model.add(tf.layers.conv2d({inputShape: [28, 28, 1], kernelSize: 3, filters: 8, activation: 'relu'}));
-        model.add(tf.layers.maxPooling2d({poolSize: [2, 2]}));
-        model.add(tf.layers.flatten());
-        model.add(tf.layers.dense({units: 12, activation: 'relu'}));
-        model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
-        
-        // 무작위 초기 가중치 부여 (간단한 형태 인식 가능 상태 유도)
-        model.compile({optimizer: 'adam', loss: 'categoricalCrossentropy', metrics: ['accuracy']});
-    }
-    buildModel();
-
-    // 2. 캔버스 드로잉 엔진 (검은 바탕에 흰 글씨가 MNIST 표준)
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 20;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = 'white'; // 흰색 펜
-
-    function startPosition(e) { isDrawing = true; draw(e); }
-    function endPosition() { isDrawing = false; ctx.beginPath(); }
-
-    function draw(e) {
-        if (!isDrawing) return;
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-        
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
-
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        e.preventDefault();
+    // 브라우저에 로드된 부드러운 한국어 목소리 엔진 찾기
+    function setVoiceEngine() {
+        // 브라우저 내장 음성 리스트 업
+        voices = window.speechSynthesis.getVoices();
+        if(voices.length > 0) {
+            document.getElementById('status').innerText = "🟢 고품질 음성 엔진 준비 완료";
+        }
     }
 
-    canvas.addEventListener('mousedown', startPosition);
-    canvas.addEventListener('mouseup', endPosition);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('touchstart', startPosition);
-    canvas.addEventListener('touchend', endPosition);
-    canvas.addEventListener('touchmove', draw);
-
-    function clearCanvas() {
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        document.getElementById('result').innerText = "숫자를 그려보세요";
+    // 크롬 등 일부 브라우저에서는 오디오 엔진 로드가 비동기라 이 이벤트가 필요함
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = setVoiceEngine;
     }
 
-    // 3. 픽셀 데이터 전처리 및 분석
-    async function predictDigit() {
-        // 280x280 가상 스크린 이미지를 AI용 28x28 픽셀로 압축
-        const resizeCanvas = document.createElement('canvas');
-        resizeCanvas.width = 28;
-        resizeCanvas.height = 28;
-        const resizeCtx = resizeCanvas.getContext('2d');
-        resizeCtx.drawImage(canvas, 0, 0, 28, 28);
+    function speakText() {
+        const text = document.getElementById('text-input').value.trim();
+        if (!text) return alert("말할 내용을 입력하세요!");
 
-        const imageData = resizeCtx.getImageData(0, 0, 28, 28).data;
-        const dataArray = new Float32Array(28 * 28);
+        // 현재 읽고 있는 게 있다면 멈추기
+        window.speechSynthesis.cancel();
 
-        // 흑백 데이터 정규화 (0.0 ~ 1.0)
-        for (let i = 0; i < imageData.length; i += 4) {
-            let r = imageData[i];
-            let g = imageData[i+1];
-            let b = imageData[i+2];
-            // 흰색 글씨일수록 1.0에 가까워짐
-            dataArray[i / 4] = ((r + g + b) / 3) / 255.0;
+        const speech = new SpeechSynthesisUtterance(text);
+        speech.lang = 'ko-KR'; // 한국어 설정
+
+        // 슬라이더 값 반영
+        speech.rate = document.getElementById('rate').value;   // 속도
+        speech.pitch = document.getElementById('pitch').value; // 음높이
+
+        // 💡 [핵심] 가장 기계음 같지 않고 부드러운 '구글 한국어' 또는 시스템 내장 고품질 엔진 선별하기
+        const selectedVoice = voices.find(voice => 
+            voice.lang.includes('ko') && 
+            (voice.name.includes('Google') || voice.name.includes('Natural') || voice.name.includes('Premium'))
+        ) || voices.find(voice => voice.lang.includes('ko')); // 없으면 기본 한국어
+
+        if (selectedVoice) {
+            speech.voice = selectedVoice;
         }
 
-        // AI 연산 전용 텐서 배열 배열 포맷화 [1, 28, 28, 1]
-        const tensor = tf.tensor4d(dataArray, [1, 28, 28, 1]);
-        
-        // 예측 실행
-        const prediction = model.predict(tensor);
-        const results = await prediction.data();
-        
-        // 가장 매칭 확률이 높은 숫자 뽑기
-        const highestIdx = results.indexOf(Math.max(...results));
-        
-        document.getElementById('result').innerText = `🧐 AI 판독 결과: ${highestIdx}`;
+        // 재생
+        window.speechSynthesis.speak(speech);
     }
+
+    // 초기 로드 시 시도
+    setTimeout(setVoiceEngine, 100);
 </script>
 
 </body>
