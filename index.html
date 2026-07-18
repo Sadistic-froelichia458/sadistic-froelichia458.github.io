@@ -2,203 +2,81 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🥩 AI 소고기 명장 타이머</title>
+    <title>🔥 캠핑 고기 마스터</title>
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #1e1e24;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .container {
-            background-color: #2a2a35;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            text-align: center;
-            width: 360px;
-            border: 2px solid #ff4757;
-        }
-        h2 { color: #ff4757; margin-top: 0; font-size: 24px; }
-        .form-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-        label { display: block; font-size: 14px; color: #ccc; margin-bottom: 5px; font-weight: bold; }
-        select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            background: #111;
-            color: white;
-            border: 1px solid #555;
-            font-size: 16px;
-        }
-        .timer-display {
-            font-size: 48px;
-            font-weight: bold;
-            color: #ffd200;
-            margin: 20px 0;
-            font-family: monospace;
-        }
-        #status-text {
-            font-size: 16px;
-            color: #2ed573;
-            font-weight: bold;
-            min-height: 24px;
-            margin-bottom: 20px;
-        }
-        button {
-            width: 100%;
-            padding: 15px;
-            font-size: 18px;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            background-color: #ff4757;
-            color: white;
-            transition: 0.2s;
-        }
-        button:hover { opacity: 0.9; transform: scale(0.98); }
-        button.stop { background-color: #747d8c; margin-top: 10px; font-size: 14px; padding: 8px; }
+        body { background: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; }
+        .box { background: #333; padding: 25px; border-radius: 15px; text-align: center; width: 320px; border: 3px solid #ff4757; }
+        select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 5px; }
+        #timer { font-size: 50px; font-weight: bold; margin: 20px 0; color: #ffeb3b; }
+        button { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #ff4757; color: white; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>🥩 AI 소고기 명장 타이머</h2>
-    
-    <!-- 부위 선택 -->
-    <div class="form-group">
-        <label>소고기 부위 선택</label>
-        <select id="beef-type">
-            <option value="thin">차돌박이 / 대패 등 (얇은 고기)</option>
-            <option value="normal" selected>등심 / 안심 / 갈빗살 (일반 두께 약 2cm)</option>
-            <option value="thick">토마호크 / 티본 / 스테이크 (두꺼운 고기 약 3~4cm)</option>
-        </select>
-    </div>
-
-    <!-- 굽기 선택 -->
-    <div class="form-group">
-        <label>굽기 취향 (Doneness)</label>
-        <select id="doneness">
-            <option value="rare">레어 (Rare - 핏빛 촉촉)</option>
-            <option value="medium" selected>미디엄 (Medium - 겉바속촉 표준)</option>
-            <option value="welldone">웰던 (Well Done - 바짝 익힘)</option>
-        </select>
-    </div>
-
-    <div class="timer-display" id="timer">00:00</div>
-    <div id="status-text">고기 구울 준비 완료</div>
-
-    <button onclick="startGrilling()">🔥 고기 올리고 타이머 시작</button>
-    <button class="stop" onclick="resetTimer()">❌ 초기화</button>
+<div class="box">
+    <h2>🔥 고기 마스터 타이머</h2>
+    <select id="meat-type">
+        <option value="beef">소고기</option>
+        <option value="pork">돼지고기</option>
+    </select>
+    <select id="level">
+        <option value="rare">레어</option>
+        <option value="medium-rare">미디움 레어</option>
+        <option value="medium" selected>미디움</option>
+        <option value="medium-well">미디움 웰던</option>
+        <option value="welldone">웰던 (돼지고기는 이것 추천)</option>
+    </select>
+    <div id="timer">00:00</div>
+    <button onclick="start()">굽기 시작</button>
 </div>
 
 <script>
-    let timerInterval;
-    let totalSeconds = 0;
-    let currentSeconds = 0;
-    let flipTime = 0; // 뒤집는 시간 (초)
-    let doneTime = 0; // 꺼내는 시간 (초)
-    let hasFlipped = false;
-
-    // TTS 목소리 세팅
+    let timer, sec = 0;
+    
     function speak(text) {
-        window.speechSynthesis.cancel(); // 겹침 방지
-        const speech = new SpeechSynthesisUtterance(text);
-        speech.lang = 'ko-KR';
-        speech.rate = 0.95; // 삼촌들이 잘 듣게 살짝 느리게
-        speech.pitch = 1.0; 
-        
-        // 고품질 구글/시스템 목소리 매칭
-        const voices = window.speechSynthesis.getVoices();
-        const selectedVoice = voices.find(v => v.lang.includes('ko') && (v.name.includes('Google') || v.name.includes('Natural'))) || voices.find(v => v.lang.includes('ko'));
-        if (selectedVoice) speech.voice = selectedVoice;
-
-        window.speechSynthesis.speak(speech);
-    }
-
-    // 브라우저 음성 엔진 깨우기용
-    window.speechSynthesis.onvoiceschanged = () => {};
-
-    function startGrilling() {
-        clearInterval(timerInterval);
-        hasFlipped = false;
-        currentSeconds = 0;
-
-        const beefType = document.getElementById('beef-type').value;
-        const doneness = document.getElementById('doneness').value;
-
-        // 💡 부위별/굽기별 매뉴얼 데이터 세팅 (앞면 구울 시간, 총 시간)
-        let config = { flip: 60, total: 120 }; // 기본값
-
-        if (beefType === 'thin') {
-            if (doneness === 'rare') { config = { flip: 15, total: 30 }; }
-            else if (doneness === 'medium') { config = { flip: 25, total: 50 }; }
-            else { config = { flip: 40, total: 80 }; }
-        } 
-        else if (beefType === 'normal') {
-            if (doneness === 'rare') { config = { flip: 60, total: 120 }; }
-            else if (doneness === 'medium') { config = { flip: 90, total: 180 }; }
-            else { config = { flip: 120, total: 240 }; }
-        } 
-        else if (beefType === 'thick') {
-            if (doneness === 'rare') { config = { flip: 120, total: 240 }; }
-            else if (doneness === 'medium') { config = { flip: 180, total: 360 }; }
-            else { config = { flip: 240, total: 480 }; }
-        }
-
-        flipTime = config.flip;
-        doneTime = config.total;
-
-        speak("좋습니다. 불판 위에 소고기를 올리세요. 타이머를 시작합니다.");
-        document.getElementById('status-text').innerText = "🥩 앞면 맛있게 익어가는 중...";
-
-        timerInterval = setInterval(() => {
-            currentSeconds++;
-            updateTimerDisplay();
-
-            // 1. 뒤집을 타이밍 체크
-            if (currentSeconds === flipTime && !hasFlipped) {
-                hasFlipped = true;
-                document.getElementById('status-text').innerText = "🔄 지금 당장 뒤집으세요!!!";
-                document.getElementById('status-text').style.color = "#ffd200";
-                speak("이봐 삼촌! 고기 타이밍이야! 지금 당장 고기 뒤집어! 멍 때리면 다 탄다!");
-            }
-
-            // 2. 다 익은 타이밍 체크
-            if (currentSeconds >= doneTime) {
-                clearInterval(timerInterval);
-                document.getElementById('status-text').innerText = "🎉 완벽합니다! 접시로 옮기세요!";
-                document.getElementById('status-text').style.color = "#ff4757";
-                speak("종료! 완벽하게 구워졌어! 불 끄고 고기 접시로 건져내서 얼른 소주 한 잔 준비해!");
-            }
-        }, 100); // 캠핑용 10배속 테스트는 100, 실제 시간은 1000으로 수정하세요 (현재 테스트용 10배속 상태)
-    }
-
-    function updateTimerDisplay() {
-        const min = String(Math.floor(currentSeconds / 60)).padStart(2, '0');
-        const sec = String(currentSeconds % 60).padStart(2, '0');
-        document.getElementById('timer').innerText = `${min}:${sec}`;
-    }
-
-    function resetTimer() {
-        clearInterval(timerInterval);
-        currentSeconds = 0;
-        hasFlipped = false;
-        updateTimerDisplay();
-        document.getElementById('status-text').innerText = "고기 구울 준비 완료";
-        document.getElementById('status-text').style.color = "#2ed573";
         window.speechSynthesis.cancel();
+        const s = new SpeechSynthesisUtterance(text);
+        s.lang = 'ko-KR';
+        s.rate = 1.0;
+        window.speechSynthesis.speak(s);
+    }
+
+    function start() {
+        clearInterval(timer);
+        sec = 0;
+        const meat = document.getElementById('meat-type').value;
+        const level = document.getElementById('level').value;
+        
+        // 굽기별 총 시간 (소고기 2cm 기준, 돼지는 더 오래 걸리게 설정)
+        const times = {
+            'rare': 120, 'medium-rare': 150, 'medium': 180, 'medium-well': 210, 'welldone': 270
+        };
+        
+        // 돼지고기면 시간 1.5배 증가
+        let total = times[level] * (meat === 'pork' ? 1.5 : 1);
+        let flip = total / 2;
+
+        speak("고기를 올리세요! 굽기를 시작합니다.");
+        
+        timer = setInterval(() => {
+            sec++;
+            document.getElementById('timer').innerText = Math.floor(sec/60).toString().padStart(2,0) + ":" + (sec%60).toString().padStart(2,0);
+            
+            // 멘트 분기 처리
+            if(sec === flip) {
+                if(meat === 'beef') {
+                    speak("이봐! 고기 뒤집어! 안 뒤집으면 만 원 넘는 소고기 탄다!!");
+                } else {
+                    speak("이봐! 고기 뒤집어! 안 그러면 고기 다 타서 먹지도 못 할 거야!!");
+                }
+            }
+            
+            if(sec === total) {
+                clearInterval(timer);
+                speak("끝났어! 지금 당장 꺼내! 안 그러면 다 타버려!");
+            }
+        }, 1000);
     }
 </script>
-
 </body>
 </html>
