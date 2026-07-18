@@ -2,30 +2,31 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>🔥 고기 마스터 프로</title>
+    <title>🔥 캠핑 마스터 프로</title>
     <style>
         body { background: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; flex-direction: column; }
         .box { background: #333; padding: 25px; border-radius: 15px; text-align: center; width: 340px; border: 3px solid #ff4757; }
         select { width: 100%; padding: 12px; margin: 6px 0; border-radius: 5px; }
         #timer { font-size: 50px; font-weight: bold; margin: 20px 0; color: #ffeb3b; }
         button { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; background: #ff4757; color: white; }
-        
-        /* 유튜브 영상 숨김 처리 */
         #yt-player { display: none; margin-top: 20px; border: 2px solid #555; border-radius: 8px; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>🔥 고기 마스터 프로</h2>
-    <select id="meat-type">
+    <h2>🔥 캠핑 마스터 프로</h2>
+    
+    <select id="meat-type" onchange="updateParts()">
         <option value="beef">소고기</option>
         <option value="pork">돼지고기</option>
+        <option value="kimchi">김치</option> <!-- 김치 추가 -->
     </select>
+    
     <select id="part">
-        <option value="일반">일반 부위</option>
-        <option value="두꺼운">두꺼운 스테이크형</option>
+        <!-- 자바스크립트 업데이트 -->
     </select>
+    
     <select id="level">
         <option value="rare">레어</option>
         <option value="medium-rare">미디움 레어</option>
@@ -33,62 +34,81 @@
         <option value="medium-well">미디움 웰던</option>
         <option value="welldone">웰던</option>
     </select>
+    
     <div id="timer">00:00</div>
     <button onclick="start()">굽기 시작</button>
     <audio id="grill-sound" src="m.m4a"></audio>
 </div>
 
-<!-- 유튜브 영상 영역 -->
 <iframe id="yt-player" width="340" height="191" src="https://www.youtube.com/embed/RKJvo6fAMmg?autoplay=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
 
 <script>
+    const partsData = {
+        beef: ["등심", "안심", "갈빗살", "부채살", "토마호크"],
+        pork: ["삼겹살", "목살", "항정살", "가브리살", "돈마호크"],
+        kimchi: ["배추김치", "파김치", "총각김치"]
+    };
+
+    function updateParts() {
+        const meat = document.getElementById('meat-type').value;
+        const partSelect = document.getElementById('part');
+        partSelect.innerHTML = "";
+        partsData[meat].forEach(part => {
+            const opt = document.createElement("option");
+            opt.value = part;
+            opt.textContent = part;
+            partSelect.appendChild(opt);
+        });
+    }
+    updateParts();
+
     let timer, sec = 0;
     
     function speak(text) {
         window.speechSynthesis.cancel();
         const s = new SpeechSynthesisUtterance(text);
         s.lang = 'ko-KR';
-        s.rate = 1.0;
         window.speechSynthesis.speak(s);
     }
 
     function start() {
         clearInterval(timer);
         sec = 0;
-        
-        // 1. 유튜브 영상 노출 및 재생
         document.getElementById('yt-player').style.display = 'block';
-
-        // 2. 사운드 파일 재생 (m.m4a)
-        const sound = document.getElementById('grill-sound');
-        sound.play();
+        document.getElementById('grill-sound').play();
 
         const meat = document.getElementById('meat-type').value;
         const part = document.getElementById('part').value;
         const level = document.getElementById('level').value;
         
-        const times = {'rare': 120, 'medium-rare': 150, 'medium': 180, 'medium-well': 210, 'welldone': 270};
-        let total = times[level] * (part === '두꺼운' ? 1.5 : 1) * (meat === 'pork' ? 1.5 : 1);
+        let total = 0;
+        // 굽기별 시간 설정
+        if(meat === 'kimchi') {
+            const kTimes = {'rare': 90, 'medium-rare': 120, 'medium': 180, 'medium-well': 240, 'welldone': 300};
+            total = kTimes[level];
+        } else {
+            const times = {'rare': 120, 'medium-rare': 150, 'medium': 180, 'medium-well': 210, 'welldone': 270};
+            total = times[level] * (meat === 'pork' ? 1.5 : 1);
+        }
+        
         let flip = total / 2;
 
-        speak("고기를 올리세요. 굽기를 시작합니다.");
+        speak(part + " 굽기를 시작합니다.");
         
         timer = setInterval(() => {
             sec++;
             document.getElementById('timer').innerText = Math.floor(sec/60).toString().padStart(2,0) + ":" + (sec%60).toString().padStart(2,0);
             
             if(sec === flip) {
-                if(meat === 'beef') {
-                    speak("이봐! 고기 뒤집어! 안 뒤집으면 만 원 넘는 소고기 탄다!!");
-                } else {
-                    speak("이봐! 고기 뒤집어! 안 그러면 고기 다 타서 먹지도 못 할 거야!!");
-                }
+                if(meat === 'beef') speak("이봐! 고기 뒤집어! 안 뒤집으면 만 원 넘는 " + part + " 탄다!!");
+                else if(meat === 'pork') speak("이봐! 고기 뒤집어! 안 그러면 " + part + " 다 타서 먹지도 못 할 거야!!");
+                else speak("이봐! 김치 뒤집어! 안 그러면 김치 다 타서 써진다고!!");
             }
             
             if(sec === total) {
                 clearInterval(timer);
                 speak("끝났어! 지금 당장 꺼내! 안 그러면 다 타버려!");
-                sound.pause();
+                document.getElementById('grill-sound').pause();
             }
         }, 1000);
     }
