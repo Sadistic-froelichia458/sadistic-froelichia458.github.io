@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎥 완벽 연동 스마트폰 웹캠 (PC 장치 불필요)</title>
+    <title>🎥 완벽 연동 스마트폰 웹캠 (화면/소리 해결판)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -43,7 +43,7 @@
     <div id="pc-section" class="section">
         <h3>컴퓨터 수신하기</h3>
         <input type="text" id="target-id" placeholder="스마트폰 방 번호 입력">
-        <button class="btn-action" onclick="connectToPhone()">화면 연결</button>
+        <button class="btn-action" onclick="connectToPhone()">화면/소리 연결</button>
         <div id="pc-log" class="log"></div>
         <video id="remote-video" autoplay playsinline controls></video>
     </div>
@@ -72,41 +72,46 @@
         peer.on('error', (err) => alert("오류: " + err.type));
 
         navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" }, 
-            audio: true 
+            video: { facingMode: "environment" }, // 후면 카메라
+            audio: true // 마이크
         }).then(stream => {
             document.getElementById('local-video').srcObject = stream;
-            // PC가 전화를 걸어오면 화면/소리 전달
             peer.on('call', call => call.answer(stream));
         }).catch(err => alert("카메라/마이크 권한을 허용해주세요."));
     }
 
-    // 💻 [PC] 화면 연결 (캠/마이크 없어도 작동하도록 가상 스트림 생성)
+    // 💻 [PC] 화면 연결 (핵심 수정 부분)
     function connectToPhone() {
         const targetId = document.getElementById('target-id').value.trim();
         if (!targetId) return alert("방 번호를 입력하세요!");
 
-        if (!peer) peer = new Peer(); // PC는 무작위 ID 발급
+        if (!peer) peer = new Peer(); 
 
         peer.on('open', () => {
             document.getElementById('pc-log').innerText = "연결 시도 중...";
             
-            // PC에 캠이 없어서 나는 에러를 막기 위한 가상 스트림(Dummy Stream) 생성
+            // 💡 [문제 해결] 비디오 채널을 열기 위해 '가짜 소리'와 '가짜 화면'을 모두 만듭니다.
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             const ctx = new AudioContext();
-            const dummyStream = ctx.createMediaStreamDestination().stream;
+            const dummyAudio = ctx.createMediaStreamDestination().stream.getAudioTracks()[0];
 
+            const canvas = document.createElement('canvas');
+            canvas.width = 1; canvas.height = 1;
+            const dummyVideo = canvas.captureStream().getVideoTracks()[0];
+
+            // 가짜 화면+소리로 묶어서 연결 요청 (스마트폰이 비디오 채널을 열게 유도)
+            const dummyStream = new MediaStream([dummyAudio, dummyVideo]);
             const call = peer.call(targetId, dummyStream);
 
             call.on('stream', remoteStream => {
-                document.getElementById('pc-log').innerText = "🟢 연결 성공! (클릭하면 소리가 켜집니다)";
+                document.getElementById('pc-log').innerText = "🟢 화면/소리 연결 성공!";
                 const remoteVideo = document.getElementById('remote-video');
                 remoteVideo.srcObject = remoteStream;
                 remoteVideo.play();
             });
 
             call.on('error', () => {
-                document.getElementById('pc-log').innerText = "❌ 연결 실패. 스마트폰 방 번호를 확인하세요.";
+                document.getElementById('pc-log').innerText = "❌ 연결 실패. 방 번호를 확인하세요.";
             });
         });
     }
