@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔊 목소리 선택 가능 고품질 TTS</title>
+    <title>🥩 AI 소고기 명장 타이머</title>
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
-            background-color: #1a1a24;
+            background-color: #1e1e24;
             color: white;
             display: flex;
             justify-content: center;
@@ -16,155 +16,188 @@
             margin: 0;
         }
         .container {
-            background-color: #252532;
+            background-color: #2a2a35;
             padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             text-align: center;
             width: 360px;
+            border: 2px solid #ff4757;
         }
-        h2 { color: #00d2ff; margin-top: 0; }
-        textarea {
-            width: calc(100% - 24px);
-            height: 90px;
-            padding: 12px;
-            border-radius: 8px;
-            border: 2px solid #00d2ff;
-            background-color: #111;
-            color: white;
-            font-size: 16px;
-            resize: none;
-            margin-bottom: 15px;
-        }
-        .control-group {
+        h2 { color: #ff4757; margin-top: 0; font-size: 24px; }
+        .form-group {
             margin-bottom: 15px;
             text-align: left;
-            font-size: 14px;
         }
-        label { display: inline-block; width: 70px; color: #aaa; }
+        label { display: block; font-size: 14px; color: #ccc; margin-bottom: 5px; font-weight: bold; }
         select {
-            width: 250px;
-            padding: 8px;
-            border-radius: 6px;
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
             background: #111;
             color: white;
             border: 1px solid #555;
-            font-size: 14px;
+            font-size: 16px;
         }
-        input[type="range"] { width: 240px; vertical-align: middle; }
-        
+        .timer-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: #ffd200;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        #status-text {
+            font-size: 16px;
+            color: #2ed573;
+            font-weight: bold;
+            min-height: 24px;
+            margin-bottom: 20px;
+        }
         button {
             width: 100%;
-            padding: 14px;
-            font-size: 16px;
+            padding: 15px;
+            font-size: 18px;
             font-weight: bold;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            background-color: #00d2ff;
-            color: #1a1a24;
+            background-color: #ff4757;
+            color: white;
             transition: 0.2s;
         }
         button:hover { opacity: 0.9; transform: scale(0.98); }
-        .status { color: #2ed573; font-size: 13px; margin-top: 12px; font-weight: bold; }
+        button.stop { background-color: #747d8c; margin-top: 10px; font-size: 14px; padding: 8px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🔊 목소리 선택 TTS</h2>
-    <textarea id="text-input">안녕하세요. 현재 연결된 음성 엔진 중에서 마음에 드는 목소리를 선택해 보세요.</textarea>
+    <h2>🥩 AI 소고기 명장 타이머</h2>
     
-    <!-- 💡 목소리 선택 창 (자바스크립트가 자동으로 채워줌) -->
-    <div class="control-group">
-        <label>목소리 🎙️</label>
-        <select id="voice-select">
-            <option>엔진 로딩 중...</option>
+    <!-- 부위 선택 -->
+    <div class="form-group">
+        <label>소고기 부위 선택</label>
+        <select id="beef-type">
+            <option value="thin">차돌박이 / 대패 등 (얇은 고기)</option>
+            <option value="normal" selected>등심 / 안심 / 갈빗살 (일반 두께 약 2cm)</option>
+            <option value="thick">토마호크 / 티본 / 스테이크 (두꺼운 고기 약 3~4cm)</option>
         </select>
     </div>
 
-    <div class="control-group">
-        <label>속도(Speed)</label>
-        <input type="range" id="rate" min="0.5" max="1.5" value="1" step="0.1">
-    </div>
-    <div class="control-group">
-        <label>음높이(Pitch)</label>
-        <input type="range" id="pitch" min="0.5" max="1.5" value="1" step="0.1">
+    <!-- 굽기 선택 -->
+    <div class="form-group">
+        <label>굽기 취향 (Doneness)</label>
+        <select id="doneness">
+            <option value="rare">레어 (Rare - 핏빛 촉촉)</option>
+            <option value="medium" selected>미디엄 (Medium - 겉바속촉 표준)</option>
+            <option value="welldone">웰던 (Well Done - 바짝 익힘)</option>
+        </select>
     </div>
 
-    <button onclick="speakText()">🎙️ 선택한 목소리로 말하기</button>
-    <div id="status" class="status">준비 완료</div>
+    <div class="timer-display" id="timer">00:00</div>
+    <div id="status-text">고기 구울 준비 완료</div>
+
+    <button onclick="startGrilling()">🔥 고기 올리고 타이머 시작</button>
+    <button class="stop" onclick="resetTimer()">❌ 초기화</button>
 </div>
 
 <script>
-    const voiceSelect = document.getElementById('voice-select');
-    let voices = [];
+    let timerInterval;
+    let totalSeconds = 0;
+    let currentSeconds = 0;
+    let flipTime = 0; // 뒤집는 시간 (초)
+    let doneTime = 0; // 꺼내는 시간 (초)
+    let hasFlipped = false;
 
-    // 기기에 내장된 전체 목소리 목록 가져와서 선택창에 뿌리기
-    function loadVoices() {
-        // 한국어(ko)와 영어(en) 목소리만 필터링해서 수집
-        voices = window.speechSynthesis.getVoices().filter(voice => 
-            voice.lang.includes('ko') || voice.lang.includes('en')
-        );
-
-        // 선택바 초기화
-        voiceSelect.innerHTML = '';
-
-        if (voices.length === 0) {
-            const option = document.createElement('option');
-            option.textContent = '사용 가능한 목소리가 없습니다.';
-            voiceSelect.appendChild(option);
-            return;
-        }
-
-        // 받아온 목소리들을 <option> 태그로 추가
-        voices.forEach((voice, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            
-            // 이름 뒤에 한국어/영어 표시 달아주기
-            const langName = voice.lang.includes('ko') ? ' [한국어]' : ' [영어]';
-            option.textContent = voice.name + langName;
-            
-            // 구글 고품질(Natural/Google) 목소리가 있으면 기본값으로 선점
-            if (voice.name.includes('Google') || voice.name.includes('Natural')) {
-                option.selected = true;
-            }
-            voiceSelect.appendChild(option);
-        });
-    }
-
-    // 브라우저 로딩 대기용 이벤트 설정
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
-    function speakText() {
-        const text = document.getElementById('text-input').value.trim();
-        if (!text) return alert("말할 내용을 입력하세요!");
-
-        // 현재 재생 중인 소리 초기화
-        window.speechSynthesis.cancel();
-
+    // TTS 목소리 세팅
+    function speak(text) {
+        window.speechSynthesis.cancel(); // 겹침 방지
         const speech = new SpeechSynthesisUtterance(text);
+        speech.lang = 'ko-KR';
+        speech.rate = 0.95; // 삼촌들이 잘 듣게 살짝 느리게
+        speech.pitch = 1.0; 
         
-        // 💡 사용자가 드롭다운에서 선택한 목소리 적용
-        const selectedVoiceIndex = voiceSelect.value;
-        if (voices[selectedVoiceIndex]) {
-            speech.voice = voices[selectedVoiceIndex];
-            speech.lang = voices[selectedVoiceIndex].lang;
-        }
+        // 고품질 구글/시스템 목소리 매칭
+        const voices = window.speechSynthesis.getVoices();
+        const selectedVoice = voices.find(v => v.lang.includes('ko') && (v.name.includes('Google') || v.name.includes('Natural'))) || voices.find(v => v.lang.includes('ko'));
+        if (selectedVoice) speech.voice = selectedVoice;
 
-        // 조절바 값 적용
-        speech.rate = document.getElementById('rate').value;
-        speech.pitch = document.getElementById('pitch').value;
-
-        // 출력
         window.speechSynthesis.speak(speech);
     }
 
-    // 실행 초기 예외 방지용 강제 호출
-    setTimeout(loadVoices, 100);
+    // 브라우저 음성 엔진 깨우기용
+    window.speechSynthesis.onvoiceschanged = () => {};
+
+    function startGrilling() {
+        clearInterval(timerInterval);
+        hasFlipped = false;
+        currentSeconds = 0;
+
+        const beefType = document.getElementById('beef-type').value;
+        const doneness = document.getElementById('doneness').value;
+
+        // 💡 부위별/굽기별 매뉴얼 데이터 세팅 (앞면 구울 시간, 총 시간)
+        let config = { flip: 60, total: 120 }; // 기본값
+
+        if (beefType === 'thin') {
+            if (doneness === 'rare') { config = { flip: 15, total: 30 }; }
+            else if (doneness === 'medium') { config = { flip: 25, total: 50 }; }
+            else { config = { flip: 40, total: 80 }; }
+        } 
+        else if (beefType === 'normal') {
+            if (doneness === 'rare') { config = { flip: 60, total: 120 }; }
+            else if (doneness === 'medium') { config = { flip: 90, total: 180 }; }
+            else { config = { flip: 120, total: 240 }; }
+        } 
+        else if (beefType === 'thick') {
+            if (doneness === 'rare') { config = { flip: 120, total: 240 }; }
+            else if (doneness === 'medium') { config = { flip: 180, total: 360 }; }
+            else { config = { flip: 240, total: 480 }; }
+        }
+
+        flipTime = config.flip;
+        doneTime = config.total;
+
+        speak("좋습니다. 불판 위에 소고기를 올리세요. 타이머를 시작합니다.");
+        document.getElementById('status-text').innerText = "🥩 앞면 맛있게 익어가는 중...";
+
+        timerInterval = setInterval(() => {
+            currentSeconds++;
+            updateTimerDisplay();
+
+            // 1. 뒤집을 타이밍 체크
+            if (currentSeconds === flipTime && !hasFlipped) {
+                hasFlipped = true;
+                document.getElementById('status-text').innerText = "🔄 지금 당장 뒤집으세요!!!";
+                document.getElementById('status-text').style.color = "#ffd200";
+                speak("이봐 삼촌! 고기 타이밍이야! 지금 당장 고기 뒤집어! 멍 때리면 다 탄다!");
+            }
+
+            // 2. 다 익은 타이밍 체크
+            if (currentSeconds >= doneTime) {
+                clearInterval(timerInterval);
+                document.getElementById('status-text').innerText = "🎉 완벽합니다! 접시로 옮기세요!";
+                document.getElementById('status-text').style.color = "#ff4757";
+                speak("종료! 완벽하게 구워졌어! 불 끄고 고기 접시로 건져내서 얼른 소주 한 잔 준비해!");
+            }
+        }, 100); // 캠핑용 10배속 테스트는 100, 실제 시간은 1000으로 수정하세요 (현재 테스트용 10배속 상태)
+    }
+
+    function updateTimerDisplay() {
+        const min = String(Math.floor(currentSeconds / 60)).padStart(2, '0');
+        const sec = String(currentSeconds % 60).padStart(2, '0');
+        document.getElementById('timer').innerText = `${min}:${sec}`;
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        currentSeconds = 0;
+        hasFlipped = false;
+        updateTimerDisplay();
+        document.getElementById('status-text').innerText = "고기 구울 준비 완료";
+        document.getElementById('status-text').style.color = "#2ed573";
+        window.speechSynthesis.cancel();
+    }
 </script>
 
 </body>
